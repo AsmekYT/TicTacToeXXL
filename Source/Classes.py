@@ -1,80 +1,94 @@
-import pygame, math
+import pygame
 
-class figure(pygame.sprite.Sprite):
-    def __init__(self, img, posX, posY):
-        super().__init__()
-        self.img = img
-        self.rect = pygame.Rect(posX, posY, self.img.get_width(), self.img.get_height())
 
-class board(pygame.sprite.Sprite):
-    def __init__(self, scale, posX, posY, makeTransparentAfterWinning):
+class Figure(pygame.sprite.Sprite):
+    def __init__(self, img, pos_x, pos_y):
         super().__init__()
-        self.makeTransparentAfterWinning = makeTransparentAfterWinning
-        self.VictoryCoordinates1 = [0, 2, 0, 1, 2, 0, 3, 6]
-        self.VictoryCoordinates2 = [4, 4, 3, 4, 5, 1, 4, 7]
-        self.VictoryCoordinates3 = [8, 6, 6, 7, 8, 2, 5, 8]
-        self.rect = pygame.Rect(posX, posY, 102 * scale, 102 * scale)
+        self.image = img
+        self.rect = pygame.Rect(pos_x, pos_y, self.image.get_width(), self.image.get_height())
+
+
+class Board(pygame.sprite.Sprite):
+    CROSS_IMG = None
+    CIRCLE_IMG = None
+    FRAME_IMG = None
+
+    WIN_COMBINATIONS = [
+        (0, 1, 2), (3, 4, 5), (6, 7, 8),
+        (0, 3, 6), (1, 4, 7), (2, 5, 8),
+        (0, 4, 8), (2, 4, 6)
+    ]
+
+    def __init__(self, scale, pos_x, pos_y, make_transparent_after_winning):
+        super().__init__()
+        self.scale = scale
+        self.make_transparent_after_winning = make_transparent_after_winning
+        self.available = True
+        self.placing = True
+        self.winner = None
+
+        if Board.CROSS_IMG is None:
+            Board.CROSS_IMG = pygame.image.load('Textures/Cross.png').convert_alpha()
+            Board.CIRCLE_IMG = pygame.image.load('Textures/Circle.png').convert_alpha()
+            Board.FRAME_IMG = pygame.image.load('Textures/Frame.png').convert_alpha()
+
+        self.cross = pygame.transform.scale(Board.CROSS_IMG, ((Board.CROSS_IMG.get_width() / 8) * self.scale,
+                                                              (Board.CROSS_IMG.get_height() / 8) * self.scale))
+        self.circle = pygame.transform.scale(Board.CIRCLE_IMG, ((Board.CIRCLE_IMG.get_width() / 8) * self.scale,
+                                                                (Board.CIRCLE_IMG.get_height() / 8) * self.scale))
+        self.frame = pygame.transform.scale(Board.FRAME_IMG, (106 * scale, 106 * scale))
+
+        self.rect = pygame.Rect(pos_x, pos_y, 102 * scale, 102 * scale)
+
         self.status = [""] * 9
         self.figures = pygame.sprite.Group()
-        self.scale = scale
-        self.avalible =  True
-        self.placing =  True
-        self.crossORG = pygame.image.load('Textures/Cross.png')
-        self.circleORG = pygame.image.load('Textures/Circle.png')
-        self.frameORG = pygame.image.load('Textures/Frame.png')
-        self.cross = pygame.transform.scale(self.crossORG, ((self.crossORG.get_width() / 8) * self.scale, (self.crossORG.get_height() / 8) * self.scale))
-        self.circle = pygame.transform.scale(self.circleORG, ((self.circleORG.get_width() / 8) * self.scale, (self.circleORG.get_height() / 8) * self.scale))
-        self.frame = pygame.transform.scale(self.frameORG, (106 * scale, 106 * scale))
+
+        w_div = self.rect.w / 2.914
+        h_div = self.rect.h / 2.914
+
         self.slots = [
             (self.rect.x, self.rect.y),
-            (self.rect.x + self.rect.w / 2.914, self.rect.y),
-            (self.rect.x + (self.rect.w / 2.914) * 2, self.rect.y),
-            (self.rect.x, self.rect.y + self.rect.h / 2.914),
-            (self.rect.x + self.rect.w / 2.914, self.rect.y + self.rect.h / 2.914),
-            (self.rect.x + (self.rect.w / 2.914) * 2, self.rect.y + self.rect.h / 2.914),
-            (self.rect.x, self.rect.y + (self.rect.h / 2.914) * 2),
-            (self.rect.x + self.rect.w / 2.914, self.rect.y + (self.rect.h / 2.914) * 2),
-            (self.rect.x + (self.rect.w / 2.914) * 2, self.rect.y + (self.rect.h / 2.914) * 2)
+            (self.rect.x + w_div, self.rect.y),
+            (self.rect.x + w_div * 2, self.rect.y),
+            (self.rect.x, self.rect.y + h_div),
+            (self.rect.x + w_div, self.rect.y + h_div),
+            (self.rect.x + w_div * 2, self.rect.y + h_div),
+            (self.rect.x, self.rect.y + h_div * 2),
+            (self.rect.x + w_div, self.rect.y + h_div * 2),
+            (self.rect.x + w_div * 2, self.rect.y + h_div * 2)
         ]
 
     def place(self, position, player):
-        self.status[position] = player
-    def updateVisuals(self):
-        try:
-            self.figures.empty()
-        except:
-            pass
-        for item, id in zip(self.status, range(9)):
-            if item == "":
-                continue
-            elif item == "X":
-                self.newFigure = figure(self.cross, self.slots[id][0], self.slots[id][1])
-                self.figures.add(self.newFigure)
-            elif item == "O":
-                self.newFigure = figure(self.circle, self.slots[id][0], self.slots[id][1])
-                self.figures.add(self.newFigure)
+        if self.status[position] == "":
+            self.status[position] = player
+            img = self.cross if player == "X" else self.circle
+            new_fig = Figure(img, self.slots[position][0], self.slots[position][1])
+            self.figures.add(new_fig)
 
     def checkDraw(self):
-        if self.status[0] != "" and self.status[1] != "" and self.status[2] != "" and self.status[3] != "" and self.status[4] != "" and self.status[
-            5] != "" and self.status[6] != "" and self.status[7] != "" and self.status[8] != "":
-            self.avalible = False
+        if "" not in self.status and self.winner is None:
+            self.available = False
+            return True
+        return False
 
     def checkVictory(self):
-        for i in range(8):
-            if self.status[self.VictoryCoordinates1[i]] == "X" and self.status[self.VictoryCoordinates2[i]] == "X" and self.status[self.VictoryCoordinates3[i]] == "X":
-                self.avalible = False
-                if self.makeTransparentAfterWinning == True:
-                    for figure in self.figures:
-                        self.cross.set_alpha(85)
-                        self.circle.set_alpha(85)
-                return "X"
-            else:
-                if self.status[self.VictoryCoordinates1[i]] == "O" and self.status[self.VictoryCoordinates2[i]] == "O" and self.status[self.VictoryCoordinates3[i]] == "O":
-                    self.avalible = False
-                    if self.makeTransparentAfterWinning == True:
-                        for figure in self.figures:
-                            self.cross.set_alpha(85)
-                            self.circle.set_alpha(85)
-                    return "O"
-                else:
-                    self.checkDraw()
+        if self.winner:
+            return self.winner
+
+        for a, b, c in Board.WIN_COMBINATIONS:
+            if self.status[a] == self.status[b] == self.status[c] and self.status[a] != "":
+                self.winner = self.status[a]
+                self.available = False
+
+                if self.make_transparent_after_winning:
+                    self.apply_transparency()
+
+                return self.winner
+
+        self.checkDraw()
+        return None
+
+    def apply_transparency(self):
+        for fig in self.figures:
+            fig.image = fig.image.copy()
+            fig.image.set_alpha(85)
